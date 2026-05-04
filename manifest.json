@@ -1,0 +1,12 @@
+{
+    "display_name": "扩展快捷开关",
+    "loading_order": 9000,
+    "requires": [],
+    "optional": [],
+    "js": "index.js",
+    "css": "",
+    "author": "User",
+    "version": "1.0.0",
+    "homePage": "",
+    "description": "在设置菜单添加一键开关，快速启用/禁用 vectors-enhanced 和 LittleWhiteBox 扩展。切换后自动保存并刷新页面。"
+}
