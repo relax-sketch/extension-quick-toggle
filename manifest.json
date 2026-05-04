@@ -6,7 +6,7 @@
     "js": "index.js",
     "css": "",
     "author": "User",
-    "version": "1.1.0",
+    "version": "1.1.1",
     "homePage": "",
     "description": "在设置菜单添加一键开关，快速切换 vectors-enhanced 和 LittleWhiteBox 的内部主开关。即时生效，无需刷新页面。"
 }

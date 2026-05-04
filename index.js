@@ -1,5 +1,5 @@
 import { extension_settings, extensionNames } from '../../../extensions.js';
-import { saveSettingsDebounced, eventSource, event_types } from '../../../../script.js';
+import { eventSource, event_types } from '../../../../script.js';
 
 const extConfigs = [
     {
@@ -26,43 +26,44 @@ function getSettings(cfg) {
     return extension_settings[cfg.settingsPath];
 }
 
+/** Read current state. Prefers the DOM checkbox (authoritative runtime state). */
 function isEnabled(cfg) {
+    const $cb = $(cfg.checkboxId);
+    if ($cb.length) return $cb.prop('checked');
     const s = getSettings(cfg);
     if (!s) return false;
     return s[cfg.settingsKey] !== false;
 }
 
+/**
+ * Toggle the internal master switch.
+ *
+ * IMPORTANT: We only operate the checkbox DOM element and trigger 'change'.
+ * We do NOT pre-set extension_settings values — that would break the
+ * extension's own change handler logic (esp. LittleWhiteBox's wasEnabled check).
+ * The change handler is responsible for updating settings, toggling features,
+ * and calling saveSettingsDebounced.
+ */
 function toggleEnabled(cfg) {
-    const s = getSettings(cfg);
-    if (!s) return;
-
-    const current = isEnabled(cfg);
-    const next = !current;
-
-    // Set the value directly
-    s[cfg.settingsKey] = next;
-
-    // If the extension's own settings checkbox exists in DOM,
-    // update it and trigger change so its internal handler runs
     const $cb = $(cfg.checkboxId);
-    if ($cb.length) {
-        $cb.prop('checked', next).trigger('change');
-    } else if (cfg.key === 'LittleWhiteBox') {
-        // LittleWhiteBox checks this global at runtime
-        window.isXiaobaixEnabled = next;
+    if (!$cb.length) {
+        if (typeof toastr !== 'undefined') {
+            toastr.warning(`无法切换 ${cfg.label}，请先进入扩展设置面板让开关加载`);
+        }
+        return false;
     }
-
-    saveSettingsDebounced();
+    const isChecked = $cb.prop('checked');
+    $cb.prop('checked', !isChecked).trigger('change');
+    return true;
 }
 
 function createToggleUI() {
-    // Check which extensions are present
     const matched = [];
     for (const cfg of extConfigs) {
         if (getSettings(cfg)) {
             matched.push(cfg);
         } else {
-            console.warn(`[ext-quick-toggle] 未找到扩展 "${cfg.key}"，对应按钮不显示`);
+            console.warn(`[ext-quick-toggle] "${cfg.key}" 未安装，按钮不显示`);
         }
     }
     if (matched.length === 0) return;
@@ -88,13 +89,14 @@ function createToggleUI() {
         };
         refreshLabel();
 
-        $btn.on('click', async () => {
+        $btn.on('click', () => {
             try {
-                toggleEnabled(cfg);
-                refreshLabel();
-                if (typeof toastr !== 'undefined') {
+                if (toggleEnabled(cfg)) {
+                    refreshLabel();
                     const nowOn = isEnabled(cfg);
-                    toastr.success(`${cfg.label} 已${nowOn ? '启用' : '关闭'}`);
+                    if (typeof toastr !== 'undefined') {
+                        toastr.success(`${cfg.label} 已${nowOn ? '启用' : '关闭'}`);
+                    }
                 }
             } catch (e) {
                 console.error(`[ext-quick-toggle] 切换 ${cfg.label} 失败:`, e);
@@ -104,7 +106,7 @@ function createToggleUI() {
     }
 }
 
-// Init
+// Init when extensions are loaded
 let done = false;
 function tryInit() {
     if (done) return;
