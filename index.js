@@ -4,7 +4,7 @@ import {
     extension_settings,
     extensionNames,
 } from '../../../extensions.js';
-import { eventSource, event_types } from '../../../../script.js';
+import { eventSource, event_types, saveSettingsDebounced } from '../../../../script.js';
 
 const extConfigs = [
     {
@@ -96,6 +96,7 @@ function softToggle(cfg) {
         return false;
     }
     s[cfg.settingsKey] = !s[cfg.settingsKey];
+    saveSettingsDebounced();
     return true;
 }
 
