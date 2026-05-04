@@ -34,6 +34,16 @@ const extConfigs = [
         color: '#ff6b6b',
         toggleType: 'hard',
     },
+    {
+        key: 'WestWorld-director-suffix',
+        label: '导演自由内容',
+        icon: 'fa-solid fa-file-pen',
+        color: '#f08d49',
+        toggleType: 'soft',
+        settingsPath: 'westworld',
+        settingsKey: 'directorSuffixEnabled',
+        checkboxId: '',  // No checkbox, toggle directly via settings
+    },
 ];
 
 // ---- helpers ----
@@ -72,14 +82,20 @@ function isEnabled(cfg) {
 
 function softToggle(cfg) {
     const $cb = $(cfg.checkboxId);
-    if (!$cb.length) {
+    if ($cb.length) {
+        const isChecked = $cb.prop('checked');
+        $cb.prop('checked', !isChecked).trigger('change');
+        return true;
+    }
+    // Fallback: directly toggle settings value (no checkbox in DOM)
+    const s = getSettings(cfg);
+    if (!s || typeof s[cfg.settingsKey] === 'undefined') {
         if (typeof toastr !== 'undefined') {
-            toastr.warning(`无法切换 ${cfg.label}，请先进入扩展设置面板让开关加载`);
+            toastr.warning(`无法切换 ${cfg.label}，请先进入扩展设置面板让设置加载`);
         }
         return false;
     }
-    const isChecked = $cb.prop('checked');
-    $cb.prop('checked', !isChecked).trigger('change');
+    s[cfg.settingsKey] = !s[cfg.settingsKey];
     return true;
 }
 
