@@ -6,7 +6,7 @@
     "js": "index.js",
     "css": "",
     "author": "User",
-    "version": "1.1.1",
+    "version": "1.2.0",
     "homePage": "",
-    "description": "在设置菜单添加一键开关，快速切换 vectors-enhanced 和 LittleWhiteBox 的内部主开关。即时生效，无需刷新页面。"
+    "description": "在设置菜单添加一键开关：聊天记录管理器(软)/小白X(软)/WestWorld(硬)。软切换即时生效，硬切换自动刷新。"
 }

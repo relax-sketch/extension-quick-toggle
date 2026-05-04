@@ -1,4 +1,9 @@
-import { extension_settings, extensionNames } from '../../../extensions.js';
+import {
+    enableExtension,
+    disableExtension,
+    extension_settings,
+    extensionNames,
+} from '../../../extensions.js';
 import { eventSource, event_types } from '../../../../script.js';
 
 const extConfigs = [
@@ -7,6 +12,7 @@ const extConfigs = [
         label: '聊天记录管理器',
         icon: 'fa-solid fa-message',
         color: '#339af0',
+        toggleType: 'soft',
         settingsPath: 'vectors_enhanced',
         settingsKey: 'master_enabled',
         checkboxId: '#vectors_enhanced_master_enabled',
@@ -16,18 +22,36 @@ const extConfigs = [
         label: '小白X',
         icon: 'fa-solid fa-box',
         color: '#51cf66',
+        toggleType: 'soft',
         settingsPath: 'LittleWhiteBox',
         settingsKey: 'enabled',
         checkboxId: '#xiaobaix_enabled',
     },
+    {
+        key: 'WestWorld',
+        label: 'WestWorld',
+        icon: 'fa-solid fa-globe',
+        color: '#ff6b6b',
+        toggleType: 'hard',
+    },
 ];
+
+// ---- helpers ----
+
+function findFullName(shortName) {
+    const tp = `third-party/${shortName}`;
+    if (extensionNames.includes(tp)) return tp;
+    if (extensionNames.includes(shortName)) return shortName;
+    return null;
+}
 
 function getSettings(cfg) {
     return extension_settings[cfg.settingsPath];
 }
 
-/** Read current state. Prefers the DOM checkbox (authoritative runtime state). */
-function isEnabled(cfg) {
+// ---- state reading ----
+
+function isSoftEnabled(cfg) {
     const $cb = $(cfg.checkboxId);
     if ($cb.length) return $cb.prop('checked');
     const s = getSettings(cfg);
@@ -35,16 +59,18 @@ function isEnabled(cfg) {
     return s[cfg.settingsKey] !== false;
 }
 
-/**
- * Toggle the internal master switch.
- *
- * IMPORTANT: We only operate the checkbox DOM element and trigger 'change'.
- * We do NOT pre-set extension_settings values — that would break the
- * extension's own change handler logic (esp. LittleWhiteBox's wasEnabled check).
- * The change handler is responsible for updating settings, toggling features,
- * and calling saveSettingsDebounced.
- */
-function toggleEnabled(cfg) {
+function isHardEnabled(cfg) {
+    const disabled = extension_settings.disabledExtensions || [];
+    return !disabled.includes(cfg._fullName);
+}
+
+function isEnabled(cfg) {
+    return cfg.toggleType === 'hard' ? isHardEnabled(cfg) : isSoftEnabled(cfg);
+}
+
+// ---- toggle logic ----
+
+function softToggle(cfg) {
     const $cb = $(cfg.checkboxId);
     if (!$cb.length) {
         if (typeof toastr !== 'undefined') {
@@ -57,23 +83,50 @@ function toggleEnabled(cfg) {
     return true;
 }
 
+async function hardToggle(cfg) {
+    const on = isHardEnabled(cfg);
+    if (on) {
+        await disableExtension(cfg._fullName);
+    } else {
+        await enableExtension(cfg._fullName);
+    }
+    return true;
+}
+
+function toggleEnabled(cfg) {
+    return cfg.toggleType === 'hard' ? hardToggle(cfg) : softToggle(cfg);
+}
+
+// ---- UI ----
+
 function createToggleUI() {
     const matched = [];
     for (const cfg of extConfigs) {
-        if (getSettings(cfg)) {
-            matched.push(cfg);
+        if (cfg.toggleType === 'hard') {
+            cfg._fullName = findFullName(cfg.key);
+            if (cfg._fullName) {
+                matched.push(cfg);
+            } else {
+                console.warn(`[ext-quick-toggle] "${cfg.key}" 未安装，按钮不显示`);
+            }
         } else {
-            console.warn(`[ext-quick-toggle] "${cfg.key}" 未安装，按钮不显示`);
+            if (getSettings(cfg)) {
+                matched.push(cfg);
+            } else {
+                console.warn(`[ext-quick-toggle] "${cfg.key}" 未安装，按钮不显示`);
+            }
         }
     }
     if (matched.length === 0) return;
 
-    $('#ext_qt_ve, #ext_qt_lwb').remove();
+    $('#ext_qt_ve, #ext_qt_lwb, #ext_qt_ww').remove();
 
     const $targetHr = $('.options-content').find('hr').last();
 
+    const btnIdMap = { 'vectors-enhanced': 'ext_qt_ve', 'LittleWhiteBox': 'ext_qt_lwb', 'WestWorld': 'ext_qt_ww' };
+
     for (const cfg of matched) {
-        const btnId = cfg.key === 'vectors-enhanced' ? 'ext_qt_ve' : 'ext_qt_lwb';
+        const btnId = btnIdMap[cfg.key];
         const $icon = $('<i>', { class: 'fa-lg ' + cfg.icon, css: { paddingRight: '12px' } });
         const $text = $('<span>');
         const $btn = $('<a>', { id: btnId, class: 'interactable', tabindex: 0 })
@@ -89,9 +142,14 @@ function createToggleUI() {
         };
         refreshLabel();
 
-        $btn.on('click', () => {
+        $btn.on('click', async () => {
             try {
-                if (toggleEnabled(cfg)) {
+                const ok = await toggleEnabled(cfg);
+                if (cfg.toggleType === 'hard') {
+                    // hard toggle triggers page reload via enableExtension/disableExtension
+                    return;
+                }
+                if (ok) {
                     refreshLabel();
                     const nowOn = isEnabled(cfg);
                     if (typeof toastr !== 'undefined') {
@@ -106,7 +164,8 @@ function createToggleUI() {
     }
 }
 
-// Init when extensions are loaded
+// ---- init ----
+
 let done = false;
 function tryInit() {
     if (done) return;
