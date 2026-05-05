@@ -6,7 +6,7 @@
     "js": "index.js",
     "css": "",
     "author": "User",
-    "version": "1.2.0",
+    "version": "1.2.1",
     "homePage": "",
-    "description": "在设置菜单添加一键开关：聊天记录管理器(软)/小白X(软)/WestWorld(硬)。软切换即时生效，硬切换自动刷新。"
+    "description": "在设置菜单添加一键开关：WestWorld(硬)/导演自由内容(软)。聊天记录管理器和小白X软开关已暂时停用。"
 }
